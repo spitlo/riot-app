@@ -37,7 +37,6 @@ var tags
 var logTags = function( eventstream ) {
   return eventstream.map( function( file, callback ) {
     var filename = file.path.replace(/.*\/|\..*$/g, '')
-    gutil.log( filename, tags )
     tags.push( filename )
     return callback()
   })
@@ -56,22 +55,12 @@ gulp.task( 'html', [ 'riot' ], function() {
       removeComments: true, 
       keepClosingSlash: true
     } ) : gutil.noop() )
-    .pipe(gulp.dest('build/'))
+    .pipe( gulp.dest( config.build ) )
 })
 
 
-// JavaScript
-gulp.task( 'riot', function() {
-  tags = []
-  return gulp.src( config.src + 'tags/**/*.tag')
-    .pipe( logTags( eventstream ) )
-    .pipe( riot({
-      compact: true
-    }) )
-    .pipe( concat('tags.js') )
-    .pipe( gulp.dest(config.src + 'js') )
-})
-gulp.task( 'browserify', [ 'riot' ], function() {
+// JavaScripts
+gulp.task( 'javascripts', [ 'riot' ], function() {
   var useUglify = config.env == 'production'
 
   var bundler = browserify({
@@ -93,16 +82,20 @@ gulp.task( 'browserify', [ 'riot' ], function() {
 
   return bundle()
 })
-
-
-// LESS and CSS
-gulp.task( 'revercss', function() {
-  gulp.src( config.src + 'revcss/**/*.revcss')
-    .pipe( revercss() )
-    .pipe( concat( 'revcss.less' ) )
-    .pipe( gulp.dest( config.src + 'less/' ) )
+gulp.task( 'riot', function() {
+  tags = []
+  return gulp.src( config.src + 'tags/**/*.tag')
+    .pipe( logTags( eventstream ) )
+    .pipe( riot( {
+      compact: true
+    } ) )
+    .pipe( concat( 'tags.js' ) )
+    .pipe( gulp.dest( config.src + 'js' ) )
 })
-gulp.task( 'less', [ 'revercss' ], function() {
+
+
+// Stylesheets
+gulp.task( 'stylesheets', [ 'revercss' ], function() {
   var useSourcemaps = config.env == 'development'
 
   return gulp.src( config.src + 'less/main.less')
@@ -114,11 +107,17 @@ gulp.task( 'less', [ 'revercss' ], function() {
     .pipe( rename('main.css') )
     .pipe( gulp.dest( config.build + 'css/' ) )
 })
+gulp.task( 'revercss', function() {
+  gulp.src( config.src + 'revcss/**/*.revcss')
+    .pipe( revercss() )
+    .pipe( concat( 'revcss.less' ) )
+    .pipe( gulp.dest( config.src + 'less/' ) )
+})
 
 
 // Serve files through Browser Sync
 gulp.task( 'serve', [ 'build' ], function() {
-  browserSync({
+  browserSync( {
     port: config.port,
     server: {
       baseDir: config.build
@@ -128,21 +127,22 @@ gulp.task( 'serve', [ 'build' ], function() {
       config.build + 'less/*.*',
       config.build + '*.*'
     ]
-  })
+  } )
 })
 
 
+// Watch task
 gulp.task( 'watch', function() {
   gulp.watch( config.src + '*.html', [ 'html' ] )
-  gulp.watch( [ config.src + 'less/*.less', config.src + 'revcss/*.revcss' ], [ 'less' ] )
-  gulp.watch( [ config.src + 'js/*.js', config.src + 'tags/*.tag' ], [ 'browserify' ] )
+  gulp.watch( [ config.src + 'js/*.js', config.src + 'tags/*.tag' ], [ 'javascripts' ] )
+  gulp.watch( [ config.src + 'less/*.less', config.src + 'revcss/*.revcss' ], [ 'stylesheets' ] )
 })
 
 
 gulp.task( 'build:prod', [ 'toggleProduction', 'build', 'toggleProduction' ] )
-gulp.task( 'build', [ 'browserify', 'less', 'html' ] )
+gulp.task( 'build', [ 'javascripts', 'stylesheets', 'html' ] )
 
 
 gulp.task( 'default', [ 'serve', 'watch' ], function() {
-  gutil.log('Serving through BrowserSync on porr ' + config.port + '.')
+  gutil.log('Serving through BrowserSync on port ' + config.port + '.')
 })
