@@ -1,0 +1,13 @@
+{
+  "gulp": {
+    "cleanscss": {
+      "advanced": true,
+      "processImport": true
+    },
+    "autoprefix": {
+      "cascade": false
+    }
+  },
+  "src": "./src/",
+  "build": "./build/"
+}

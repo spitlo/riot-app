@@ -1,2 +1,4 @@
 node_modules
 build
+src/js/tags.js
+src/less/revcss.less
