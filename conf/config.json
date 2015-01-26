@@ -1,13 +1,21 @@
 {
-  "gulp": {
-    "cleanscss": {
-      "advanced": true,
-      "processImport": true
+  "global": {
+    "gulp": {
+      "cleanscss": {
+        "advanced": true,
+        "processImport": true
+      },
+      "autoprefix": {
+        "cascade": false
+      }
     },
-    "autoprefix": {
-      "cascade": false
-    }
+    "src": "./src/",
+    "build": "./build/"
   },
-  "src": "./src/",
-  "build": "./build/"
+  "production": {
+    "port": false
+  },
+  "development": {
+    "port": 3001
+  }
 }

@@ -1,5 +1,4 @@
-var config = require('./config.json')
-
+var configs = require('./config.json')
 var env = process.env.NODE_ENV || 'development'
 
 // http://gomakethings.com/ditching-jquery/#extend
@@ -20,6 +19,8 @@ var extend = function ( objects ) {
   return extended
 }
 
+var config = extend( {}, configs.global )
+config = extend( config, configs[env] )
 
 config.env = env
 config.port = process.env.PORT || config.port || 3000
