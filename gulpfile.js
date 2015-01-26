@@ -8,21 +8,18 @@ var htmlmin = require('gulp-htmlmin')
 var rename = require('gulp-rename')
 var concat = require('gulp-concat')
 var revercss = require('gulp-revercss')
+var less = require('gulp-less')
+var sourcemaps = require('gulp-sourcemaps')
+var lessCleanCSS = require("less-plugin-clean-css")
+var lessAutoPrefix = require('less-plugin-autoprefix')
 var gutil = require('gulp-util')
+var inject = require('gulp-inject-string')
+var stream = require('vinyl-source-stream')
+var buffer = require('gulp-buffer')
 
 // Read configuration file
 var config = require('./config')
-
-// Check for command line arguments (--port is the only supported one)
-// var opts = require("nomnom")
-//   .options({
-//     port: {
-//       abbr: 'p',
-//       default: 8000,
-//       help: 'Set what port to listen to'
-//     }
-//   })
-//  .parse()
+config.env = 'development'
 
 // http://gomakethings.com/ditching-jquery/#extend
 var extend = function ( objects ) {
@@ -42,9 +39,6 @@ var extend = function ( objects ) {
   return extended
 }
 
-
-
-// Inline minified js & css and minify HTML
 gulp.task( 'html', function() {
   return gulp.src('src/index.html')
     // .pipe(inline({
@@ -63,10 +57,23 @@ gulp.task( 'html', function() {
     } )
 })
 
+// Pre Riot 2.0.2
+// gulp.task( 'libs', function() {
+//   var riotDir = './node_modules/gulp-riot/node_modules/riot/'
+//   var riotVersion = require( riotDir + 'package' ).version
+//   var riotLicense = '/* Riot ' + riotVersion + ', @license MIT, (c) 2015 Muut Inc. + contributors */\n'
+//   gulp.src( riotDir + 'lib/*.js' )
+//     .pipe(inject.prepend('var riot = { version: \'v' + riotVersion + '\' } ; \'use strict\';'))
+//     .pipe(concat('riot.js'))
+//     .pipe(uglify())
+//     .pipe(inject.prepend(riotLicense))
+//     .pipe(gulp.dest('./build/js'))
+// })
+
 gulp.task( 'browserify', function() {
   var bundler = browserify({
     entries: [ './src/js/main.js' ],
-    debug: true
+    debug: config.env == 'development_'
   })
 
   var bundle = function() {
@@ -76,7 +83,12 @@ gulp.task( 'browserify', function() {
         gutil.log( err )
       } )
       .pipe( stream( 'bundle.js' ) )
-      .pipe( gulp.dest( './build/' ) )
+    .pipe( revercss( {
+      minified: true
+    } ) )
+      .pipe( buffer() )
+      .pipe( uglify() )
+      .pipe( gulp.dest( './build/js/' ) )
       .on( 'end', function() {
         gutil.log( 'Browserify done.' )
       } )
@@ -86,21 +98,35 @@ gulp.task( 'browserify', function() {
 })
 
 gulp.task( 'riot', function() {
-  gulp.src('src/tags/**/*.tag')
+  return gulp.src('src/tags/**/*.tag')
     .pipe(riot({
       compact: true
     }))
-    .pipe(concat('tags.js'))
-    .pipe(gulp.dest('./build/js'))
+    .pipe( concat('tags.js') )
+    .pipe( uglify() )
+    .pipe( gulp.dest('./build/js') )
+})
+
+gulp.task( 'less', function() {
+  useSourcemaps = config.env == 'development'
+
+  return gulp.src(config.src + 'less/main.less')
+    .pipe( useSourcemaps ? sourcemaps.init() : gutil.noop() )
+    .pipe( less({
+      plugins: [autoprefix, cleancss]
+    } ) )
+    .pipe( useSourcemaps ? sourcemaps.write() : gutil.noop() )
+    .pipe( rename('main.css') )
+    .pipe( gulp.dest(config.dist + 'css/') )
 })
 
 gulp.task( 'revercss', function() {
   gulp.src('src/revcss/**/*.revcss')
-    .pipe(revercss({
+    .pipe( revercss( {
       minified: true
-    }))
-    .pipe(concat('main.css'))
-    .pipe(gulp.dest('./build/css'))
+    } ) )
+    .pipe( concat( 'main.css' ) )
+    .pipe( gulp.dest( './build/css' ) )
 })
 
 // Serve files through Browser Sync
@@ -119,11 +145,12 @@ gulp.task( 'watch', function() {
   gulp.watch('src/*.html', [ 'html' ])
   gulp.watch('src/less/*.less', [ 'less' ])
   gulp.watch('src/revcss/*.revcss', [ 'revercss' ])
+  gulp.watch('src/tags/*.tag', [ 'riot' ])
   gulp.watch('src/js/*.js', [ 'browserify' ])
 })
 
 
-gulp.task( 'build', [ 'riot', 'revercss', 'html' ] )
+gulp.task( 'build', [ 'browserify', 'riot', 'revercss', 'less', 'html' ] )
 
 gulp.task( 'default', [ 'serve', 'watch' ], function() {
   gutil.log('Serving through BrowserSync.')
