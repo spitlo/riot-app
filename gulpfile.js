@@ -18,34 +18,16 @@ var stream = require('vinyl-source-stream')
 var buffer = require('gulp-buffer')
 
 // Read configuration file
-var config = require('./config')
-config.env = 'development'
+var config = require('./conf/')
+// Init Less plugins
+var cleancss = new lessCleanCSS( config.gulp.cleancss )
+var autoprefix= new lessAutoPrefix( config.gulp.autoprefix )
 
-// http://gomakethings.com/ditching-jquery/#extend
-var extend = function ( objects ) {
-  var extended = {}
-  var merge = function (obj) {
-    for (var prop in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, prop)) {
-        extended[prop] = obj[prop]
-      }
-    }
-  }
-  merge(arguments[0])
-  for (var i = 1; i < arguments.length; i++) {
-    var obj = arguments[i]
-    merge(obj)
-  }
-  return extended
-}
+console.log(config.build);
 
+// HTML
 gulp.task( 'html', function() {
-  return gulp.src('src/index.html')
-    // .pipe(inline({
-    //   base: './build/',
-    //   js: uglify(),
-    //   css: cssmin()
-    // }))
+  return gulp.src( config.src + 'index.html')
     .pipe(htmlmin({
       collapseWhitespace: true, 
       removeComments: true, 
@@ -53,27 +35,24 @@ gulp.task( 'html', function() {
     }))
     .pipe(gulp.dest('build/'))
     .on( 'end', function() {
-      gutil.log( 'CSS and JS minified and inlined, HTML minified.' )
+      gutil.log( 'HTML minified.' )
     } )
 })
 
-// Pre Riot 2.0.2
-// gulp.task( 'libs', function() {
-//   var riotDir = './node_modules/gulp-riot/node_modules/riot/'
-//   var riotVersion = require( riotDir + 'package' ).version
-//   var riotLicense = '/* Riot ' + riotVersion + ', @license MIT, (c) 2015 Muut Inc. + contributors */\n'
-//   gulp.src( riotDir + 'lib/*.js' )
-//     .pipe(inject.prepend('var riot = { version: \'v' + riotVersion + '\' } ; \'use strict\';'))
-//     .pipe(concat('riot.js'))
-//     .pipe(uglify())
-//     .pipe(inject.prepend(riotLicense))
-//     .pipe(gulp.dest('./build/js'))
-// })
-
-gulp.task( 'browserify', function() {
+// JavaScript
+gulp.task( 'riot', function() {
+  return gulp.src( config.src + 'tags/**/*.tag')
+    .pipe(riot({
+      compact: true
+    }))
+    .pipe( concat('tags.js') )
+    .pipe( uglify() )
+    .pipe( gulp.dest(config.src + 'js') )
+})
+gulp.task( 'browserify', [ 'riot' ], function() {
   var bundler = browserify({
-    entries: [ './src/js/main.js' ],
-    debug: config.env == 'development_'
+    entries: [ config.src + 'js/main.js' ],
+    debug: config.env == 'development'
   })
 
   var bundle = function() {
@@ -83,12 +62,9 @@ gulp.task( 'browserify', function() {
         gutil.log( err )
       } )
       .pipe( stream( 'bundle.js' ) )
-    .pipe( revercss( {
-      minified: true
-    } ) )
       .pipe( buffer() )
       .pipe( uglify() )
-      .pipe( gulp.dest( './build/js/' ) )
+      .pipe( gulp.dest( config.build + 'js/' ) )
       .on( 'end', function() {
         gutil.log( 'Browserify done.' )
       } )
@@ -97,60 +73,47 @@ gulp.task( 'browserify', function() {
   return bundle()
 })
 
-gulp.task( 'riot', function() {
-  return gulp.src('src/tags/**/*.tag')
-    .pipe(riot({
-      compact: true
-    }))
-    .pipe( concat('tags.js') )
-    .pipe( uglify() )
-    .pipe( gulp.dest('./build/js') )
+// LESS and CSS
+gulp.task( 'revercss', function() {
+  gulp.src( config.src + 'revcss/**/*.revcss')
+    .pipe( revercss( {
+      minified: false
+    } ) )
+    .pipe( concat( 'revcss.less' ) )
+    .pipe( gulp.dest( config.src + 'less/' ) )
 })
-
-gulp.task( 'less', function() {
+gulp.task( 'less', [ 'revercss' ], function() {
   useSourcemaps = config.env == 'development'
 
-  return gulp.src(config.src + 'less/main.less')
+  return gulp.src( config.src + 'less/main.less')
     .pipe( useSourcemaps ? sourcemaps.init() : gutil.noop() )
     .pipe( less({
-      plugins: [autoprefix, cleancss]
+      plugins: [ autoprefix, cleancss ]
     } ) )
     .pipe( useSourcemaps ? sourcemaps.write() : gutil.noop() )
     .pipe( rename('main.css') )
-    .pipe( gulp.dest(config.dist + 'css/') )
-})
-
-gulp.task( 'revercss', function() {
-  gulp.src('src/revcss/**/*.revcss')
-    .pipe( revercss( {
-      minified: true
-    } ) )
-    .pipe( concat( 'main.css' ) )
-    .pipe( gulp.dest( './build/css' ) )
+    .pipe( gulp.dest( config.build + 'css/' ) )
 })
 
 // Serve files through Browser Sync
 gulp.task( 'serve', [ 'build' ], function() {
   browserSync({
     server: {
-      baseDir: './build/'
+      baseDir: config.build
     },
     files: [
-      './build/*.*'
+      config.build + '**/*.*'
     ]
   })
 })
 
 gulp.task( 'watch', function() {
-  gulp.watch('src/*.html', [ 'html' ])
-  gulp.watch('src/less/*.less', [ 'less' ])
-  gulp.watch('src/revcss/*.revcss', [ 'revercss' ])
-  gulp.watch('src/tags/*.tag', [ 'riot' ])
-  gulp.watch('src/js/*.js', [ 'browserify' ])
+  gulp.watch( config.src + '*.html', [ 'html' ] )
+  gulp.watch( [ config.src + 'less/*.less', config.src + 'revcss/*.revcss' ], [ 'less' ] )
+  gulp.watch( [ config.src + 'js/*.js', config.src + 'tags/*.tag' ], [ 'browserify' ] )
 })
 
-
-gulp.task( 'build', [ 'browserify', 'riot', 'revercss', 'less', 'html' ] )
+gulp.task( 'build', [ 'browserify', 'less', 'html' ] )
 
 gulp.task( 'default', [ 'serve', 'watch' ], function() {
   gutil.log('Serving through BrowserSync.')
