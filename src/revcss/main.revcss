@@ -35,3 +35,15 @@ box-sizing: border-box {
 box-sizing: inherit {
   *, *:before, *:after
 }
+
+display: block {
+  todo
+}
+
+max-width: 400px {
+  todo
+}
+
+margin: 5% auto {
+  todo
+}
