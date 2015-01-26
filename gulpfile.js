@@ -14,42 +14,66 @@ var lessCleanCSS = require("less-plugin-clean-css")
 var lessAutoPrefix = require('less-plugin-autoprefix')
 var gutil = require('gulp-util')
 var inject = require('gulp-inject-string')
-var stream = require('vinyl-source-stream')
+var source = require('vinyl-source-stream')
+var eventstream = require('event-stream')
 var buffer = require('gulp-buffer')
+var template = require('gulp-template')
 
 // Read configuration file
 var config = require('./conf/')
+
 // Init Less plugins
 var cleancss = new lessCleanCSS( config.gulp.cleancss )
-var autoprefix= new lessAutoPrefix( config.gulp.autoprefix )
+var autoprefix = new lessAutoPrefix( config.gulp.autoprefix )
 
-console.log(config.build);
+// Enable build task to force minification and turn off 
+var forProduction = false
+gulp.task( 'toggleProduction', function() {
+  forProduction = !forProduction
+  config.env = forProduction ? 'production' : 'development'
+})
+
+var tags
+var logTags = function( eventstream ) {
+  return eventstream.map( function( file, callback ) {
+    var filename = file.path.replace(/.*\/|\..*$/g, '')
+    gutil.log( filename, tags )
+    tags.push( filename )
+    return callback()
+  })
+}
 
 // HTML
-gulp.task( 'html', function() {
+gulp.task( 'html', [ 'riot' ], function() {
+  var useHtmlMin = config.env == 'production'
+
   return gulp.src( config.src + 'index.html')
-    .pipe(htmlmin({
+    .pipe( template( {
+      tags: tags
+    } ) )
+    .pipe( useHtmlMin ? htmlmin( {
       collapseWhitespace: true, 
       removeComments: true, 
       keepClosingSlash: true
-    }))
+    } ) : gutil.noop() )
     .pipe(gulp.dest('build/'))
-    .on( 'end', function() {
-      gutil.log( 'HTML minified.' )
-    } )
 })
+
 
 // JavaScript
 gulp.task( 'riot', function() {
+  tags = []
   return gulp.src( config.src + 'tags/**/*.tag')
-    .pipe(riot({
+    .pipe( logTags( eventstream ) )
+    .pipe( riot({
       compact: true
-    }))
+    }) )
     .pipe( concat('tags.js') )
-    .pipe( uglify() )
     .pipe( gulp.dest(config.src + 'js') )
 })
 gulp.task( 'browserify', [ 'riot' ], function() {
+  var useUglify = config.env == 'production'
+
   var bundler = browserify({
     entries: [ config.src + 'js/main.js' ],
     debug: config.env == 'development'
@@ -61,33 +85,29 @@ gulp.task( 'browserify', [ 'riot' ], function() {
       .on( 'error', function( err ) {
         gutil.log( err )
       } )
-      .pipe( stream( 'bundle.js' ) )
-      .pipe( buffer() )
-      .pipe( uglify() )
+      .pipe( source( 'bundle.js' ) )
+      .pipe( useUglify ? buffer() : gutil.noop() )
+      .pipe( useUglify ? uglify() : gutil.noop() )
       .pipe( gulp.dest( config.build + 'js/' ) )
-      .on( 'end', function() {
-        gutil.log( 'Browserify done.' )
-      } )
   }
 
   return bundle()
 })
 
+
 // LESS and CSS
 gulp.task( 'revercss', function() {
   gulp.src( config.src + 'revcss/**/*.revcss')
-    .pipe( revercss( {
-      minified: false
-    } ) )
+    .pipe( revercss() )
     .pipe( concat( 'revcss.less' ) )
     .pipe( gulp.dest( config.src + 'less/' ) )
 })
 gulp.task( 'less', [ 'revercss' ], function() {
-  useSourcemaps = config.env == 'development'
+  var useSourcemaps = config.env == 'development'
 
   return gulp.src( config.src + 'less/main.less')
     .pipe( useSourcemaps ? sourcemaps.init() : gutil.noop() )
-    .pipe( less({
+    .pipe( less( {
       plugins: [ autoprefix, cleancss ]
     } ) )
     .pipe( useSourcemaps ? sourcemaps.write() : gutil.noop() )
@@ -95,17 +115,22 @@ gulp.task( 'less', [ 'revercss' ], function() {
     .pipe( gulp.dest( config.build + 'css/' ) )
 })
 
+
 // Serve files through Browser Sync
 gulp.task( 'serve', [ 'build' ], function() {
   browserSync({
+    port: config.port,
     server: {
       baseDir: config.build
     },
     files: [
-      config.build + '**/*.*'
+      config.build + 'js/*.*',
+      config.build + 'less/*.*',
+      config.build + '*.*'
     ]
   })
 })
+
 
 gulp.task( 'watch', function() {
   gulp.watch( config.src + '*.html', [ 'html' ] )
@@ -113,8 +138,11 @@ gulp.task( 'watch', function() {
   gulp.watch( [ config.src + 'js/*.js', config.src + 'tags/*.tag' ], [ 'browserify' ] )
 })
 
+
+gulp.task( 'build:prod', [ 'toggleProduction', 'build', 'toggleProduction' ] )
 gulp.task( 'build', [ 'browserify', 'less', 'html' ] )
 
+
 gulp.task( 'default', [ 'serve', 'watch' ], function() {
-  gutil.log('Serving through BrowserSync.')
+  gutil.log('Serving through BrowserSync on porr ' + config.port + '.')
 })
