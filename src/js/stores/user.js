@@ -11,6 +11,7 @@ var Store = Flux.createStore({
     fullName: {
       deps: ['firstName', 'lastName'],
       calculate: function () {
+        console.log('hey');
         return this.firstName + ' ' + this.lastName
       }
     }
