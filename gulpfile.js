@@ -3,6 +3,7 @@ var riot = require('gulp-riot')
 var browserSync = require('browser-sync')
 var reload = browserSync.reload
 var browserify = require('browserify')
+var buffer = require('gulp-buffer')
 var uglify = require('gulp-uglify')
 var htmlmin = require('gulp-htmlmin')
 var rename = require('gulp-rename')
@@ -100,7 +101,7 @@ gulp.task( 'javascripts', [ 'riot' ], function() {
       .bundle()
       .on( 'error', braise )
       .pipe( source( 'bundle.js' ) )
-      .pipe( useUglify ? gutil.buffer() : gutil.noop() )
+      .pipe( useUglify ? buffer() : gutil.noop() )
       .pipe( useUglify ? uglify() : gutil.noop() )
       .pipe( gulp.dest( config.build + 'js/' ) )
   }
@@ -120,7 +121,7 @@ gulp.task( 'riot', function() {
 
 
 // Stylesheets
-gulp.task( 'stylesheets', [ 'revercss' ], function() {
+gulp.task( 'stylesheets', function() {
   var useSourcemaps = config.env == 'development'
 
   return gulp.src( config.src + 'less/main.less')
@@ -133,13 +134,6 @@ gulp.task( 'stylesheets', [ 'revercss' ], function() {
     .pipe( rename('main.css') )
     .pipe( gulp.dest( config.build + 'css/' ) )
 })
-gulp.task( 'revercss', function() {
-  return gulp.src( config.src + 'revcss/**/*.revcss')
-    .pipe( revercss() )
-    .on( 'error', raise )
-    .pipe( concat( 'revcss.less' ) )
-    .pipe( gulp.dest( config.src + 'less/' ) )
-})
 
 
 // Clean-up
@@ -148,7 +142,6 @@ gulp.task( 'clean', function( callback ) {
     config.src + 'less/' + 'revcss.less',
     config.src + 'js' + 'tags.js'
   ], callback )
-  //callback()
 })
 
 
@@ -171,8 +164,8 @@ gulp.task( 'serve', [ 'build' ], function() {
 // Watch task
 gulp.task( 'watch', function() {
   gulp.watch( config.src + '*.html', [ 'html' ] )
-  gulp.watch( [ config.src + 'js/*.js', config.src + 'tags/*.tag' ], [ 'javascripts' ] )
-  gulp.watch( [ config.src + 'less/*.less', config.src + 'revcss/*.revcss' ], [ 'stylesheets' ] )
+  gulp.watch( [ config.src + 'js/**', config.src + 'tags/**' ], [ 'javascripts', 'clean' ] )
+  gulp.watch( config.src + 'less/**', [ 'stylesheets' ] )
 })
 
 
