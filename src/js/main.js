@@ -1,31 +1,11 @@
 var riot = require('riot')
 var tags = require('./tags')
+var domReady = require('./modules/domready')
 
-function domReady () {
+var app = function() {
   document.body.className += ' js'
 
-  riot.mount('todo', {
-    title: 'I want to behave!',
-    items: [
-      { title: 'Avoid excessive coffeine', done: true },
-      { title: 'Hidden item', hidden: true },
-      { title: 'Be less provocative' },
-      { title: 'Be nice to people' }
-    ]
-  })
-  riot.mount('timer', { start: 0 })
+  var riotApp = riot.mount( 'riot-app' )
 }
 
-if ( document.addEventListener ) {
-  document.addEventListener( 'DOMContentLoaded', function() {
-    document.removeEventListener( 'DOMContentLoaded', arguments.callee, false )
-    domReady()
-  }, false )
-} else if ( document.attachEvent ) {
-  document.attachEvent( 'onreadystatechange', function() {
-    if ( document.readyState === 'complete' ) {
-      document.detachEvent( 'onreadystatechange', arguments.callee )
-      domReady()
-    }
-  })
-}
+domReady( app )

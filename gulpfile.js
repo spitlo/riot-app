@@ -42,6 +42,18 @@ var logTags = function( eventstream ) {
   })
 }
 
+// Generic + browserify error handlers
+var raise = function( err ) {
+  var errMess = 'Error\n'
+  if ( err.type ) {
+    errMess = err.type + ' ' + errMess
+  }
+  gutil.log( gutil.colors.red( errMess ), gutil.colors.yellow( err.message ), '\n in file: ', err.filename )
+}
+var braise = function( err ) {
+  raise( err )
+  this.end()
+}
 
 /*-----------------------------
   _________   _____ __ _______
@@ -63,11 +75,13 @@ gulp.task( 'html', [ 'riot' ], function() {
 
   return gulp.src( config.src + 'index.html')
     .pipe( tagAdder ? inject.before( '<![endif]-->', tagAdder ) : gutil.noop() )
+    .on( 'error', raise )
     .pipe( useHtmlMin ? htmlmin( {
       collapseWhitespace: true,
       removeComments: true,
       keepClosingSlash: true
     } ) : gutil.noop() )
+    .on( 'error', raise )
     .pipe( gulp.dest( config.build ) )
 })
 
@@ -84,9 +98,7 @@ gulp.task( 'javascripts', [ 'riot' ], function() {
   var bundle = function() {
     return bundler
       .bundle()
-      .on( 'error', function( err ) {
-        gutil.log( err )
-      } )
+      .on( 'error', braise )
       .pipe( source( 'bundle.js' ) )
       .pipe( useUglify ? gutil.buffer() : gutil.noop() )
       .pipe( useUglify ? uglify() : gutil.noop() )
@@ -100,6 +112,7 @@ gulp.task( 'riot', function() {
   return gulp.src( config.src + 'tags/**/*.tag')
     .pipe( logTags( eventstream ) )
     .pipe( riot() )
+    .on( 'error', raise )
     .pipe( concat( 'tags.js' ) )
     .pipe( inject.prepend( 'var riot = require("riot");\n' ) )
     .pipe( gulp.dest( config.src + 'js' ) )
@@ -115,6 +128,7 @@ gulp.task( 'stylesheets', [ 'revercss' ], function() {
     .pipe( less( {
       plugins: [ autoprefix, cleancss ]
     } ) )
+    .on( 'error', raise )
     .pipe( useSourcemaps ? sourcemaps.write() : gutil.noop() )
     .pipe( rename('main.css') )
     .pipe( gulp.dest( config.build + 'css/' ) )
@@ -122,6 +136,7 @@ gulp.task( 'stylesheets', [ 'revercss' ], function() {
 gulp.task( 'revercss', function() {
   return gulp.src( config.src + 'revcss/**/*.revcss')
     .pipe( revercss() )
+    .on( 'error', raise )
     .pipe( concat( 'revcss.less' ) )
     .pipe( gulp.dest( config.src + 'less/' ) )
 })
