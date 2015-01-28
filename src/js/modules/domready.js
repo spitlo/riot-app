@@ -12,7 +12,7 @@ var domReady = function( callback ) {
       }
     })
   } else {
-    var oldOnload = window.onload;
+    var oldOnload = window.onload
     window.onload = function () {
       oldOnload && oldOnload()
       callback()
