@@ -1,5 +1,5 @@
-riot = require('riot')
-tags = require('./tags')
+var riot = require('riot')
+var tags = require('./tags')
 
 function domReady () {
   document.body.className += ' js'
