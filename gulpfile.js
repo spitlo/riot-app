@@ -10,8 +10,6 @@ var concat = require('gulp-concat')
 var revercss = require('gulp-revercss')
 var less = require('gulp-less')
 var sourcemaps = require('gulp-sourcemaps')
-var lessCleanCSS = require("less-plugin-clean-css")
-var lessAutoPrefix = require('less-plugin-autoprefix')
 var gutil = require('gulp-util')
 var inject = require('gulp-inject-string')
 var source = require('vinyl-source-stream')
@@ -23,16 +21,19 @@ var template = require('gulp-template')
 var config = require('./conf/')
 
 // Init Less plugins
-var cleancss = new lessCleanCSS( config.gulp.cleancss )
-var autoprefix = new lessAutoPrefix( config.gulp.autoprefix )
+var LessCleanCSS = require('less-plugin-clean-css')
+var LessAutoPrefix = require('less-plugin-autoprefix')
+var cleancss = new LessCleanCSS( config.gulp.cleancss )
+var autoprefix = new LessAutoPrefix( config.gulp.autoprefix )
 
-// Enable build task to force minification and turn off 
+// Enable build task to force minification and turn off sourcemaps
 var forProduction = false
 gulp.task( 'toggleProduction', function() {
   forProduction = !forProduction
   config.env = forProduction ? 'production' : 'development'
 })
 
+// Save tags discovered by riot task to use for <= IE8 comp.
 var tags
 var logTags = function( eventstream ) {
   return eventstream.map( function( file, callback ) {
@@ -41,6 +42,16 @@ var logTags = function( eventstream ) {
     return callback()
   })
 }
+
+
+/*-----------------------------
+  _________   _____ __ _______
+ /_  __/   | / ___// //_/ ___/
+  / / / /| | \__ \/ ,<  \__ \
+ / / / ___ |___/ / /| |___/ /
+/_/ /_/  |_/____/_/ |_/____/
+
+-----------------------------*/
 
 // HTML
 gulp.task( 'html', [ 'riot' ], function() {
@@ -51,8 +62,8 @@ gulp.task( 'html', [ 'riot' ], function() {
       tags: tags
     } ) )
     .pipe( useHtmlMin ? htmlmin( {
-      collapseWhitespace: true, 
-      removeComments: true, 
+      collapseWhitespace: true,
+      removeComments: true,
       keepClosingSlash: true
     } ) : gutil.noop() )
     .pipe( gulp.dest( config.build ) )
@@ -139,10 +150,12 @@ gulp.task( 'watch', function() {
 })
 
 
+// Build tasks
 gulp.task( 'build:prod', [ 'toggleProduction', 'build', 'toggleProduction' ] )
 gulp.task( 'build', [ 'javascripts', 'stylesheets', 'html' ] )
 
 
+// Default task
 gulp.task( 'default', [ 'serve', 'watch' ], function() {
   gutil.log('Serving through BrowserSync on port ' + config.port + '.')
 })
