@@ -14,8 +14,6 @@ var gutil = require('gulp-util')
 var inject = require('gulp-inject-string')
 var source = require('vinyl-source-stream')
 var eventstream = require('event-stream')
-//var buffer = require('gulp-buffer')
-var template = require('gulp-template')
 var del = require('del')
 
 // Read configuration file
@@ -38,10 +36,9 @@ gulp.task( 'toggleProduction', function() {
 var tags
 var logTags = function( eventstream ) {
   return eventstream.map( function( file, callback ) {
-    console.log(file.path);
     var filename = file.path.replace(/.*\/|\..*$/g, '')
     tags.push( filename )
-    return callback()
+    return callback( null, file )
   })
 }
 
@@ -58,11 +55,14 @@ var logTags = function( eventstream ) {
 // HTML
 gulp.task( 'html', [ 'riot' ], function() {
   var useHtmlMin = config.env == 'production'
+  var tagAdder
+
+  if ( tags && tags.length > 0 ) {
+    tagAdder = '<script>html5.addElements("' + tags.join(' ') + '")</script>'
+  }
 
   return gulp.src( config.src + 'index.html')
-    .pipe( template( {
-      tags: tags
-    } ) )
+    .pipe( tagAdder ? inject.before( '<![endif]-->', tagAdder ) : gutil.noop() )
     .pipe( useHtmlMin ? htmlmin( {
       collapseWhitespace: true,
       removeComments: true,
@@ -98,11 +98,10 @@ gulp.task( 'javascripts', [ 'riot' ], function() {
 gulp.task( 'riot', function() {
   tags = []
   return gulp.src( config.src + 'tags/**/*.tag')
-    //.pipe( logTags( eventstream ) )
-    .pipe( riot( {
-      compact: true
-    } ) )
+    .pipe( logTags( eventstream ) )
+    .pipe( riot() )
     .pipe( concat( 'tags.js' ) )
+    .pipe( inject.prepend( 'var riot = require("riot");\n' ) )
     .pipe( gulp.dest( config.src + 'js' ) )
 })
 
@@ -121,19 +120,20 @@ gulp.task( 'stylesheets', [ 'revercss' ], function() {
     .pipe( gulp.dest( config.build + 'css/' ) )
 })
 gulp.task( 'revercss', function() {
-  gulp.src( config.src + 'revcss/**/*.revcss')
+  return gulp.src( config.src + 'revcss/**/*.revcss')
     .pipe( revercss() )
-    .pipe( concat( '__revcss.less' ) )
+    .pipe( concat( 'revcss.less' ) )
     .pipe( gulp.dest( config.src + 'less/' ) )
 })
 
 
 // Clean-up
 gulp.task( 'clean', function( callback ) {
-  // del( [
-  //   config.src + 'less/' + '__revcss.less',
-  //   config.src + 'js' + '__tags.js'
-  // ], callback )
+  del( [
+    config.src + 'less/' + 'revcss.less',
+    config.src + 'js' + 'tags.js'
+  ], callback )
+  //callback()
 })
 
 
