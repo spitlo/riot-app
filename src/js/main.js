@@ -18,7 +18,7 @@ function domReady () {
 
 if ( document.addEventListener ) {
   document.addEventListener( 'DOMContentLoaded', function() {
-    document.removeEventListener( 'DOMContentLoaded', arguments.callee, false)
+    document.removeEventListener( 'DOMContentLoaded', arguments.callee, false )
     domReady()
   }, false )
 } else if ( document.attachEvent ) {
