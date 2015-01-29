@@ -1,14 +1,14 @@
 <user>
   
   <div class="user-name">
-    <h2>{opts.store.firstName} {opts.store.lastName}</h2>
-    <h4>Calculated name: {opts.store.fullName}</h4>
-    <input name="firstName" value={opts.store.firstName}></input><button onclick={changeFirstname}>Change</button><br>
-    <input name="lastName" value={opts.store.lastName}></input><button onclick={changeLastname}>Change</button>
+    <h2>{opts.store.store.firstName} {opts.store.store.lastName}</h2>
+    <h4>Calculated name: {opts.store.store.fullName}</h4>
+    <input name="firstName" value={opts.store.store.firstName}></input><button onclick={changeFirstname}>Change</button><br>
+    <input name="lastName" value={opts.store.store.lastName}></input><button onclick={changeLastname}>Change</button>
   </div>
 
   <script>
-    var store = opts.store
+    var store = opts.store.store
     changeFirstname( e ) {
       var newName = this.firstName.value
       if ( newName !== store.firstName ) {

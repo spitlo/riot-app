@@ -2,7 +2,7 @@
 
   <h1>Riot Test App</h1>
 
-  <user store={opts.user.store} dispatcher={opts.dispatcher}></user>
+  <user store={opts.user.store} dispatcher={opts.user.dispatcher}></user>
 
   <script>
     this.on( 'mount', function() {
