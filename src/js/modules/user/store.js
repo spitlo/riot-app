@@ -49,8 +49,4 @@ var Store = Flux.createStore({
   }
 })
 
-var User = function( user ) {
-  return new Store( user )
-}
-
-module.exports = User
+module.exports = Store
