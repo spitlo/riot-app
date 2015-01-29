@@ -1,8 +1,9 @@
 var gulp = require('gulp')
-var riot = require('gulp-riot')
 var browserSync = require('browser-sync')
 var reload = browserSync.reload
+var watchify = require('watchify')
 var browserify = require('browserify')
+var riotify = require('riotify')
 var buffer = require('gulp-buffer')
 var uglify = require('gulp-uglify')
 var htmlmin = require('gulp-htmlmin')
@@ -66,10 +67,10 @@ var braise = function( err ) {
 -----------------------------*/
 
 // HTML
-gulp.task( 'html', [ 'riot' ], function() {
+gulp.task( 'html', function() {
   var useHtmlMin = config.env == 'production'
   var tagAdder
-
+  // Find riotify-compatible way to do this
   if ( tags && tags.length > 0 ) {
     tagAdder = '<script>html5.addElements("' + tags.join(' ') + '")</script>'
   }
@@ -88,36 +89,26 @@ gulp.task( 'html', [ 'riot' ], function() {
 
 
 // JavaScripts
-gulp.task( 'javascripts', [ 'riot' ], function() {
+var bundler = watchify( browserify( config.src + 'js/main.js', { 
+  cache: {},
+  packageCache: {},
+  fullPaths: true,
+  extensions: [ '.tag' ],
+  debug: config.env == 'development'
+} ) )
+bundler.transform( 'riotify' )
+bundler.on( 'update', bundle )
+function bundle() {
   var useUglify = config.env == 'production'
-
-  var bundler = browserify({
-    entries: [ config.src + 'js/main.js' ],
-    debug: config.env == 'development'
-  })
-
-  var bundle = function() {
-    return bundler
-      .bundle()
-      .on( 'error', braise )
-      .pipe( source( 'bundle.js' ) )
-      .pipe( useUglify ? buffer() : gutil.noop() )
-      .pipe( useUglify ? uglify() : gutil.noop() )
-      .pipe( gulp.dest( config.build + 'js/' ) )
-  }
-
-  return bundle()
-})
-gulp.task( 'riot', function() {
-  tags = []
-  return gulp.src( config.src + 'tags/**/*.tag')
-    .pipe( logTags( eventstream ) )
-    .pipe( riot() )
-    .on( 'error', raise )
-    .pipe( concat( 'tags.js' ) )
-    .pipe( inject.prepend( 'var riot = require("riot");\n' ) )
-    .pipe( gulp.dest( config.src + 'js' ) )
-})
+  return bundler
+    .bundle()
+    .on( 'error', braise )
+    .pipe( source( 'bundle.js' ) )
+    .pipe( useUglify ? buffer() : gutil.noop() )
+    .pipe( useUglify ? uglify() : gutil.noop() )
+    .pipe( gulp.dest( config.build + 'js/' ) )
+}
+gulp.task( 'javascripts', bundle )
 
 
 // Stylesheets
