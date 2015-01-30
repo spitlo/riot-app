@@ -11,3 +11,23 @@
   &:before, &:after{ content:""; display:table; }
   &:after{ clear: both; }
 }
+
+// Media Queries
+.x-small(@rules) {
+  @media (min-width: 414px) { @rules(); }
+}
+.small(@rules) {
+  @media (min-width: 600px) { @rules(); }
+}
+.medium(@rules) {
+  @media (min-width: 768px) { @rules(); }
+}
+.large(@rules) {
+  @media (min-width: 980px) { @rules(); }
+}
+.x-large(@rules) {
+  @media (min-width: 1200px) { @rules(); }
+}
+.ad-agency(@rules) {
+  @media (min-width: 1600px) { @rules(); }
+}
