@@ -1,13 +1,17 @@
 {
-  "name": "riottest",
-  "version": "0.2.0",
+  "name": "riot-app",
+  "version": "0.3.0",
   "description": "Trying out the riot.js UI library",
-  "main": "index.html",
-  "scripts": {
-    "test": "./node_modules/jscs/bin/jscs --verbose ./**/*.js"
-  },
-  "author": "",
+  "author": "spitlo",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spitlo/riot-app"
+  },
+  "scripts": {
+    "test": "./node_modules/jscs/bin/jscs --verbose ./**/*.js",
+    "start": "gulp"
+  },
   "devDependencies": {
     "browser-sync": "^1.9.1",
     "browserify": "^8.1.1",
