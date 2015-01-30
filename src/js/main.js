@@ -1,9 +1,8 @@
 var riot = require('riot')
 var ready = require('./modules/domready')
 
-// Set up tags
-var tagApp = require('./tags/riot-app')
-var tagUser = require('./tags/user')
+// Set up tags - There must be a better way to do this!?
+var appTag = require('./riot-app')
 
 // Set up stores
 var User = require('./modules/user/')

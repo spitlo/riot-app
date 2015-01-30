@@ -22,8 +22,7 @@ var extend = function ( objects ) {
 var config = extend( {}, configs.global )
 config = extend( config, configs[env] )
 
-// Try loading private settings 
-// (f.ex different ports to avoid conflicts between projects)
+// Try loading private settings
 try {
   pconfig = require('./private.json')
   config = extend(config, pconfig)
@@ -33,7 +32,7 @@ catch (err) {
     console.log('No private settings found.')
   }
 }
-console.log(config);
+
 config.env = env
 config.port = process.env.PORT || config.port || 3000
 
