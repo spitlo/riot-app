@@ -1,29 +1,28 @@
-var gulp = require('gulp')
-var browserSync = require('browser-sync')
+var gulp = require( 'gulp' )
+var browserSync = require( 'browser-sync' )
 var reload = browserSync.reload
-var watchify = require('watchify')
-var browserify = require('browserify')
-var riotify = require('riotify')
-var buffer = require('gulp-buffer')
-var uglify = require('gulp-uglify')
-var htmlmin = require('gulp-htmlmin')
-var rename = require('gulp-rename')
-var concat = require('gulp-concat')
-var revercss = require('gulp-revercss')
-var less = require('gulp-less')
-var sourcemaps = require('gulp-sourcemaps')
-var gutil = require('gulp-util')
-var inject = require('gulp-inject-string')
-var source = require('vinyl-source-stream')
-var eventstream = require('event-stream')
-var del = require('del')
+var watchify = require( 'watchify' )
+var browserify = require( 'browserify' )
+var riotify = require( 'riotify' )
+var buffer = require( 'gulp-buffer' )
+var uglify = require( 'gulp-uglify' )
+var htmlmin = require( 'gulp-htmlmin' )
+var rename = require( 'gulp-rename' )
+var concat = require( 'gulp-concat' )
+var less = require( 'gulp-less' )
+var sourcemaps = require( 'gulp-sourcemaps' )
+var gutil = require( 'gulp-util' )
+var inject = require( 'gulp-inject-string' )
+var source = require( 'vinyl-source-stream' )
+var eventstream = require( 'event-stream' )
+var fs = require( 'fs' )
 
 // Read configuration file
-var config = require('./conf/')
+var config = require( './conf/' )
 
 // Init Less plugins
-var LessCleanCSS = require('less-plugin-clean-css')
-var LessAutoPrefix = require('less-plugin-autoprefix')
+var LessCleanCSS = require( 'less-plugin-clean-css' )
+var LessAutoPrefix = require( 'less-plugin-autoprefix' )
 var cleancss = new LessCleanCSS( config.gulp.cleancss )
 var autoprefix = new LessAutoPrefix( config.gulp.autoprefix )
 
@@ -32,7 +31,7 @@ var forProduction = false
 gulp.task( 'toggleProduction', function() {
   forProduction = !forProduction
   config.env = forProduction ? 'production' : 'development'
-})
+} )
 
 // Save tags discovered by riot task to use for <= IE8 comp.
 var tags
@@ -41,7 +40,7 @@ var logTags = function( eventstream ) {
     var filename = file.path.replace(/.*\/|\..*$/g, '')
     tags.push( filename )
     return callback( null, file )
-  })
+  } )
 }
 
 // Generic + browserify error handlers
@@ -50,7 +49,12 @@ var raise = function( err ) {
   if ( err.type ) {
     errMess = err.type + ' ' + errMess
   }
-  gutil.log( gutil.colors.red( errMess ), gutil.colors.yellow( err.message ), '\n in file: ', err.filename )
+  gutil.log(
+    gutil.colors.red( errMess ),
+    gutil.colors.yellow( err.message ),
+    '\n in file: ',
+    err.filename
+  )
 }
 var braise = function( err ) {
   raise( err )
@@ -66,11 +70,17 @@ var braise = function( err ) {
 
 -----------------------------*/
 
+// Collect tags
+gulp.task( 'tagCollector', function() {
+  tags = []
+  return gulp.src( config.src + 'js/**/*.tag')
+    .pipe( logTags( eventstream ) )
+} )
+
+
 // HTML
-gulp.task( 'html', function() {
-  var useHtmlMin = config.env == 'production'
+gulp.task( 'html', [ 'tagCollector' ], function() {
   var tagAdder
-  // Find riotify-compatible way to do this
   if ( tags && tags.length > 0 ) {
     tagAdder = '<script>html5.addElements("' + tags.join(' ') + '")</script>'
   }
@@ -78,62 +88,64 @@ gulp.task( 'html', function() {
   return gulp.src( config.src + 'index.html')
     .pipe( tagAdder ? inject.before( '<![endif]-->', tagAdder ) : gutil.noop() )
     .on( 'error', raise )
-    .pipe( useHtmlMin ? htmlmin( {
+    .pipe( config.env == 'production' ? htmlmin( {
       collapseWhitespace: true,
       removeComments: true,
       keepClosingSlash: true
     } ) : gutil.noop() )
     .on( 'error', raise )
     .pipe( gulp.dest( config.build ) )
-})
+} )
 
 
 // JavaScripts
-var bundler = watchify( browserify( config.src + 'js/main.js', { 
+var bundler = watchify( browserify( config.src + 'js/main.js', {
   cache: {},
   packageCache: {},
   fullPaths: true,
   extensions: [ '.tag' ],
   debug: config.env == 'development'
-} ) )
-bundler.transform( 'riotify' )
-bundler.on( 'update', bundle )
+} ) ).transform( 'riotify' ).on( 'update', bundle )
 function bundle() {
-  var useUglify = config.env == 'production'
   return bundler
     .bundle()
     .on( 'error', braise )
     .pipe( source( 'bundle.js' ) )
-    .pipe( useUglify ? buffer() : gutil.noop() )
-    .pipe( useUglify ? uglify() : gutil.noop() )
+    .pipe( buffer() )
+    .pipe( config.env == 'production' ? uglify() : gutil.noop() )
+    .pipe( config.env == 'development' ? sourcemaps.init( { loadMaps: true } ) : gutil.noop() )
+    .pipe( config.env == 'development' ? sourcemaps.write( './' ) : gutil.noop() )
     .pipe( gulp.dest( config.build + 'js/' ) )
 }
 gulp.task( 'javascripts', bundle )
 
 
 // Stylesheets
-gulp.task( 'stylesheets', function() {
-  var useSourcemaps = config.env == 'development'
+gulp.task( 'stylesheets', [ 'tagCollector' ], function() {
+  var tagAdder = ''
+  if ( tags && tags.length > 0 ) {
+    tags.forEach( function( tag ) {
+      // Try finding tag specific less files and inject as imports
+      var fileName = tag + '.less'
+      if ( fs.existsSync( config.src + 'less/tags/' + fileName ) ) {
+        tagAdder += '@import "tags/' + fileName + '";'
+      } else if ( fs.existsSync( config.src + 'js/modules/' + tag + '/' + fileName ) ) {
+        tagAdder += '@import "../js/modules/' + tag + '/' + fileName + '";'
+      }
+    } )
+  }
 
   return gulp.src( config.src + 'less/main.less')
-    .pipe( useSourcemaps ? sourcemaps.init() : gutil.noop() )
+    .pipe( config.env == 'development' ? sourcemaps.init() : gutil.noop() )
+    .pipe( tagAdder ? inject.append( tagAdder ) : gutil.noop() )
     .pipe( less( {
       plugins: [ autoprefix, cleancss ]
     } ) )
     .on( 'error', raise )
-    .pipe( useSourcemaps ? sourcemaps.write() : gutil.noop() )
     .pipe( rename('main.css') )
+    .pipe( config.env == 'development' ? sourcemaps.write( './' ) : gutil.noop() )
     .pipe( gulp.dest( config.build + 'css/' ) )
-})
-
-
-// Clean-up
-gulp.task( 'clean', function( callback ) {
-  del( [
-    config.src + 'less/' + 'revcss.less',
-    config.src + 'js' + 'tags.js'
-  ], callback )
-})
+} )
 
 
 // Serve files through Browser Sync
@@ -145,27 +157,28 @@ gulp.task( 'serve', [ 'build' ], function() {
     },
     files: [
       config.build + 'js/*.*',
-      config.build + 'less/*.*',
+      config.build + 'css/*.*',
       config.build + '*.*'
     ]
   } )
-})
+} )
 
 
 // Watch task
 gulp.task( 'watch', function() {
-  gulp.watch( config.src + '*.html', [ 'html' ] )
-  gulp.watch( [ config.src + 'js/**', config.src + 'tags/**' ], [ 'javascripts', 'clean' ] )
-  gulp.watch( config.src + 'less/**', [ 'stylesheets' ] )
-})
+  gulp.watch( [ config.watchSrc + '*.html', config.watchSrc + 'js/**/*.tag' ], [ 'html' ] )
+  gulp.watch( config.watchSrc + 'js/**', [ 'javascripts' ] )
+  gulp.watch( config.watchSrc + 'js/**/*.tag', [ 'html' ] )
+  gulp.watch( config.watchSrc + '**/*.less', [ 'stylesheets' ] )
+} )
 
 
 // Build tasks
 gulp.task( 'build:prod', [ 'toggleProduction', 'build', 'toggleProduction' ] )
-gulp.task( 'build', [ 'javascripts', 'stylesheets', 'html', 'clean' ] )
+gulp.task( 'build', [ 'javascripts', 'stylesheets', 'html' ] )
 
 
 // Default task
 gulp.task( 'default', [ 'serve', 'watch' ], function() {
   gutil.log('Serving through BrowserSync on port ' + config.port + '.')
-})
+} )

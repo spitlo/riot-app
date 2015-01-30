@@ -6,7 +6,7 @@
 
   <script>
     this.on( 'mount', function() {
-      console.log('App mounted.', opts);
+      console.log('App mounted.', opts)
     })
   </script>
 </riot-app>

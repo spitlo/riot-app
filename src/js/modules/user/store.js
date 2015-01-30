@@ -11,7 +11,6 @@ var Store = Flux.createStore({
     fullName: {
       deps: ['firstName', 'lastName'],
       calculate: function () {
-        console.log('hey');
         return this.firstName + ' ' + this.lastName
       }
     }
@@ -31,14 +30,12 @@ var Store = Flux.createStore({
 
   changeFirstName: function( newName ) {
     console.log('Store: Event received, setting new first name', newName)
-    this.firstName = newName
-    this.emit('change')
+    this.set( 'firstName', newName )
   },
 
   changeLastName: function( newName ) {
     console.log('Store: Event received, setting new last name', newName)
-    this.lastName = newName
-    this.emit('change')
+    this.set( 'lastName', newName )
   },
 
   getState: function () {
