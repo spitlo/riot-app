@@ -37,6 +37,7 @@
     "watchify": "^2.2.1"
   },
   "dependencies": {
-    "delorean": "^0.8.7"
+    "delorean": "^0.8.7",
+    "svg-injector": "^1.1.2"
   }
 }

@@ -139,7 +139,7 @@ gulp.task( 'stylesheets', [ 'tagCollector' ], function() {
     } )
   }
 
-  return gulp.src( config.src + 'less/main.less')
+  return gulp.src( config.src + 'less/main.less' )
     .pipe( config.env == 'development' ? sourcemaps.init() : gutil.noop() )
     .pipe( tagAdder ? inject.append( tagAdder ) : gutil.noop() )
     .pipe( less( {
@@ -149,6 +149,13 @@ gulp.task( 'stylesheets', [ 'tagCollector' ], function() {
     .pipe( rename('main.css') )
     .pipe( config.env == 'development' ? sourcemaps.write( config.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )
     .pipe( gulp.dest( config.build + 'css/' ) )
+} )
+
+
+// Images
+gulp.task( 'images', function() {
+  return gulp.src( config.src + 'i/**' )
+    .pipe( gulp.dest( config.build + 'i/' ) )
 } )
 
 
@@ -175,6 +182,7 @@ gulp.task( 'watch', function() {
   gulp.watch( [ config.watchSrc + '*.html', config.watchSrc + 'js/**/*.tag' ], [ 'html' ] )
   gulp.watch( config.watchSrc + 'js/**', [ 'javascripts' ] )
   gulp.watch( config.watchSrc + '**/*.less', [ 'stylesheets' ] )
+  gulp.watch( config.watchSrc + 'i/*.*', [ 'images' ] )
 } )
 
 
@@ -182,7 +190,7 @@ gulp.task( 'watch', function() {
 // build:prod forces build into production mode, turning off sourcemaps and
 // turning on minification
 gulp.task( 'build:prod', [ 'toggleProduction', 'build', 'toggleProduction' ] )
-gulp.task( 'build', [ 'javascripts', 'stylesheets', 'html' ] )
+gulp.task( 'build', [ 'images', 'javascripts', 'stylesheets', 'html' ] )
 
 
 // Default task
