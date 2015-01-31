@@ -1,4 +1,14 @@
 
+0.3.2 / 2015-01-31
+==================
+
+  * Fixed <icon> xlink:href parsing problem
+  * Check for svg support in main.js
+  * Embedded fonts
+  * Fixed watchify memory leak
+  * Update CHANGELOG.md
+
+
 0.3.1 / 2015-01-31
 ==================
 
