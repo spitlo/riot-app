@@ -1,13 +1,14 @@
 {
   "global": {
     "gulp": {
-      "cleanscss": {
+      "cleanCss": {
         "advanced": true,
         "processImport": true
       },
-      "autoprefix": {
+      "autoPrefix": {
         "cascade": false
-      }
+      },
+      "externalSourcemaps": true
     },
     "src": "./src/",
     "watchSrc": "src/",

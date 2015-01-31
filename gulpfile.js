@@ -23,18 +23,14 @@ var config = require( './conf/' )
 // Init Less plugins
 var LessCleanCSS = require( 'less-plugin-clean-css' )
 var LessAutoPrefix = require( 'less-plugin-autoprefix' )
-var cleancss = new LessCleanCSS( config.gulp.cleancss )
-var autoprefix = new LessAutoPrefix( config.gulp.autoprefix )
+var cleancss = new LessCleanCSS( config.gulp.cleanCss )
+var autoprefix = new LessAutoPrefix( config.gulp.autoPrefix )
 
-// Enable build task to force minification and turn off sourcemaps
+// Used by toggleProduction
 var forProduction = false
-gulp.task( 'toggleProduction', function() {
-  forProduction = !forProduction
-  config.env = forProduction ? 'production' : 'development'
-} )
 
-// Save tags discovered by riot task to use for <= IE8 comp.
-var tags
+// Helper funtion to save name of all custom tags discovered by tagCollector
+var tags = []
 var logTags = function( eventstream ) {
   return eventstream.map( function( file, callback ) {
     var filename = file.path.replace(/.*\/|\..*$/g, '')
@@ -70,11 +66,18 @@ var braise = function( err ) {
 
 -----------------------------*/
 
-// Collect tags
+// Collect tags to use for <= IE8 compability and tag-specific .less file injection
 gulp.task( 'tagCollector', function() {
   tags = []
   return gulp.src( config.src + 'js/**/*.tag')
     .pipe( logTags( eventstream ) )
+} )
+
+
+// Enable build task to force minification and turn off sourcemaps
+gulp.task( 'toggleProduction', function() {
+  forProduction = !forProduction
+  config.env = forProduction ? 'production' : 'development'
 } )
 
 
@@ -99,6 +102,7 @@ gulp.task( 'html', [ 'tagCollector' ], function() {
 
 
 // JavaScripts
+// TODO: Watchify(?) prevents gulp from exiting after build, fix?
 var bundler = watchify( browserify( config.src + 'js/main.js', {
   cache: {},
   packageCache: {},
@@ -114,7 +118,7 @@ function bundle() {
     .pipe( buffer() )
     .pipe( config.env == 'production' ? uglify() : gutil.noop() )
     .pipe( config.env == 'development' ? sourcemaps.init( { loadMaps: true } ) : gutil.noop() )
-    .pipe( config.env == 'development' ? sourcemaps.write( './' ) : gutil.noop() )
+    .pipe( config.env == 'development' ? sourcemaps.write( config.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )
     .pipe( gulp.dest( config.build + 'js/' ) )
 }
 gulp.task( 'javascripts', bundle )
@@ -143,7 +147,7 @@ gulp.task( 'stylesheets', [ 'tagCollector' ], function() {
     } ) )
     .on( 'error', raise )
     .pipe( rename('main.css') )
-    .pipe( config.env == 'development' ? sourcemaps.write( './' ) : gutil.noop() )
+    .pipe( config.env == 'development' ? sourcemaps.write( config.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )
     .pipe( gulp.dest( config.build + 'css/' ) )
 } )
 
@@ -166,19 +170,22 @@ gulp.task( 'serve', [ 'build' ], function() {
 
 // Watch task
 gulp.task( 'watch', function() {
+  // The reason for using config.watchSrc and not config.src is that gulp.watch
+  // doesn't trigger on globs starting with './'
   gulp.watch( [ config.watchSrc + '*.html', config.watchSrc + 'js/**/*.tag' ], [ 'html' ] )
   gulp.watch( config.watchSrc + 'js/**', [ 'javascripts' ] )
-  gulp.watch( config.watchSrc + 'js/**/*.tag', [ 'html' ] )
   gulp.watch( config.watchSrc + '**/*.less', [ 'stylesheets' ] )
 } )
 
 
 // Build tasks
+// build:prod forces build into production mode, turning off sourcemaps and
+// turning on minification
 gulp.task( 'build:prod', [ 'toggleProduction', 'build', 'toggleProduction' ] )
 gulp.task( 'build', [ 'javascripts', 'stylesheets', 'html' ] )
 
 
 // Default task
 gulp.task( 'default', [ 'serve', 'watch' ], function() {
-  gutil.log('Serving through BrowserSync on port ' + config.port + '.')
+  gutil.log( 'Serving through BrowserSync on port ' + gutil.colors.yellow( config.port ) + '.' )
 } )
