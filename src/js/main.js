@@ -9,8 +9,12 @@ var appTag = require( './riot-app' )
 var User = require( './modules/user/' )
 
 var app = function() {
-  document.body.className += ' js'
-  
+  document.documentElement.className += ' js'
+  // Check for SVG support
+  if ( document.implementation.hasFeature( 'http://www.w3.org/TR/SVG11/feature#Image', '1.1' ) ) {
+    document.documentElement.className += ' svg'
+  }
+
   var svgSprite = document.querySelectorAll( '.iconic-sprite' )
   SVGInjector( svgSprite )
 
