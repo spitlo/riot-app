@@ -108,11 +108,11 @@ var bundler = browserify( config.src + 'js/main.js', {
   fullPaths: !forProduction,
   extensions: [ '.tag' ],
   debug: config.env == 'development'
-} )
+} ).transform( 'riotify' )
+var watchedBundler = watchify( bundler )
 
 bundle = function() {
-  _bundler = forProduction ? bundler : watchify( bundler );
-  return _bundler
+  return ( forProduction ? bundler : watchedBundler )
     .bundle()
     .on( 'error', braise )
     .pipe( source( 'bundle.js' ) )
@@ -122,7 +122,7 @@ bundle = function() {
     .pipe( config.env == 'development' ? sourcemaps.write( config.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )
     .pipe( gulp.dest( config.build + 'js/' ) )
 }
-bundler.transform( 'riotify' ).on( 'update', bundle )
+watchedBundler.on( 'update', bundle )
 gulp.task( 'javascripts', bundle )
 
 
