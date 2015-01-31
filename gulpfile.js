@@ -181,7 +181,7 @@ gulp.task( 'watch', function() {
   // doesn't trigger on globs starting with './'
   gulp.watch( [ config.watchSrc + '*.html', config.watchSrc + 'js/**/*.tag' ], [ 'html' ] )
   gulp.watch( config.watchSrc + 'js/**', [ 'javascripts' ] )
-  gulp.watch( config.watchSrc + '**/*.less', [ 'stylesheets' ] )
+  gulp.watch( config.watchSrc + '**/**/*.less', [ 'stylesheets' ] )
   gulp.watch( config.watchSrc + 'i/*.*', [ 'images' ] )
 } )
 

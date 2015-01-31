@@ -1,11 +1,10 @@
 <user>
   
   <div class="user-name">
-    <svg viewBox="0 0 8 8" class="icon inline">
-      <use xlink:href="#account-login" class="icon-account-login"></use>
-    </svg>
-    <h2>{opts.store.store.firstName} {opts.store.store.lastName}</h2>
-    <h4>Calculated name: {opts.store.store.fullName}</h4>
+    <icon iconname="audio-spectrum" icontype="inline" class="medium"></icon>
+    <h2>{opts.store.store.fullName}</h2>
+  </div>
+  <div class="form">
     <input name="firstName" value={opts.store.store.firstName}></input><button onclick={changeFirstname}>Change</button><br>
     <input name="lastName" value={opts.store.store.lastName}></input><button onclick={changeLastname}>Change</button>
   </div>
@@ -27,7 +26,7 @@
       }
     }
     this.on( 'mount', function() {
-      console.log( 'In user.tag:', opts)
+      console.log( 'In user.tag:', opts )
     })
   </script>
 </user>

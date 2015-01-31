@@ -1,7 +1,9 @@
-var Dispatcher = require('./dispatcher')
-var Store = require('./store')
+var Dispatcher = require( './dispatcher' )
+var Store = require( './store' )
 
-var tag = require('./user')
+// Require tags
+var icon = require( '../icon/' )
+var self = require( './user' )
 
 var User = function( user ) {
   var store = new Store( user )
