@@ -14,7 +14,10 @@ var app = function() {
   var svgSprite = document.querySelectorAll( '.iconic-sprite' )
   SVGInjector( svgSprite )
 
-  var user = User()
+  var user = User( {
+    firstName: 'Test',
+    lastName: 'User'
+  } )
   user.store.onChange(function() {
     console.log('Change to user store detected...')
   })

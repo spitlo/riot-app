@@ -102,16 +102,17 @@ gulp.task( 'html', [ 'tagCollector' ], function() {
 
 
 // JavaScripts
-// TODO: Watchify(?) prevents gulp from exiting after build, fix?
-var bundler = watchify( browserify( config.src + 'js/main.js', {
+var bundler = browserify( config.src + 'js/main.js', {
   cache: {},
   packageCache: {},
-  fullPaths: true,
+  fullPaths: !forProduction,
   extensions: [ '.tag' ],
   debug: config.env == 'development'
-} ) ).transform( 'riotify' ).on( 'update', bundle )
-function bundle() {
-  return bundler
+} )
+
+bundle = function() {
+  _bundler = forProduction ? bundler : watchify( bundler );
+  return _bundler
     .bundle()
     .on( 'error', braise )
     .pipe( source( 'bundle.js' ) )
@@ -121,6 +122,7 @@ function bundle() {
     .pipe( config.env == 'development' ? sourcemaps.write( config.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )
     .pipe( gulp.dest( config.build + 'js/' ) )
 }
+bundler.transform( 'riotify' ).on( 'update', bundle )
 gulp.task( 'javascripts', bundle )
 
 
