@@ -26,9 +26,6 @@ var LessAutoPrefix = require( 'less-plugin-autoprefix' )
 var cleancss = new LessCleanCSS( config.gulp.cleanCss )
 var autoprefix = new LessAutoPrefix( config.gulp.autoPrefix )
 
-// Used by toggleProduction
-var forProduction = false
-
 // Helper funtion to save name of all custom tags discovered by tagCollector
 var tags = []
 var logTags = function( eventstream ) {
@@ -75,9 +72,8 @@ gulp.task( 'tagCollector', function() {
 
 
 // Enable build task to force minification and turn off sourcemaps
-gulp.task( 'toggleProduction', function() {
-  forProduction = !forProduction
-  config.env = forProduction ? 'production' : 'development'
+gulp.task( 'forceProduction', function() {
+  config.env = 'production'
 } )
 
 
@@ -102,17 +98,10 @@ gulp.task( 'html', [ 'tagCollector' ], function() {
 
 
 // JavaScripts
-var bundler = browserify( config.src + 'js/main.js', {
-  cache: {},
-  packageCache: {},
-  fullPaths: !forProduction,
-  extensions: [ '.tag' ],
-  debug: config.env == 'development'
-} ).transform( 'riotify' )
-var watchedBundler = watchify( bundler )
-
+var bundler
 bundle = function() {
-  return ( forProduction ? bundler : watchedBundler )
+  gutil.log( 'Bundling for', ( config.env == 'production' ? 'production' : 'development' ) )
+  return bundler
     .bundle()
     .on( 'error', braise )
     .pipe( source( 'bundle.js' ) )
@@ -122,8 +111,26 @@ bundle = function() {
     .pipe( config.env == 'development' ? sourcemaps.write( config.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )
     .pipe( gulp.dest( config.build + 'js/' ) )
 }
-watchedBundler.on( 'update', bundle )
-gulp.task( 'javascripts', bundle )
+gulp.task( 'javascripts', function() {
+  bundler = browserify( config.src + 'js/main.js', {
+    cache: {},
+    packageCache: {},
+    fullPaths: config.env == 'development',
+    extensions: [ '.tag' ],
+    debug: config.env == 'development'
+  } )
+
+  if ( config.env == 'development' ) {
+    bundler = watchify( bundler )
+    bundler.on( 'update', function() {
+      return bundle()
+    } )
+  }
+
+  bundler.transform( 'riotify' )
+  
+  return bundle()
+} )
 
 
 // Stylesheets
@@ -162,7 +169,7 @@ gulp.task( 'images', function() {
 
 
 // Serve files through Browser Sync
-gulp.task( 'serve', [ 'build' ], function() {
+gulp.task( 'serve', function() {
   browserSync( {
     port: config.port,
     server: {
@@ -181,9 +188,9 @@ gulp.task( 'serve', [ 'build' ], function() {
 gulp.task( 'watch', function() {
   // The reason for using config.watchSrc and not config.src is that gulp.watch
   // doesn't trigger on globs starting with './'
-  gulp.watch( [ config.watchSrc + '*.html', config.watchSrc + 'js/**/*.tag' ], [ 'html' ] )
-  gulp.watch( config.watchSrc + 'js/**', [ 'javascripts' ] )
+  gulp.watch( config.watchSrc + '*.html', [ 'html' ] )
   gulp.watch( config.watchSrc + '**/**/*.less', [ 'stylesheets' ] )
+  gulp.watch( config.watchSrc + 'js/**/*.tag', [ 'html', 'stylesheets' ] )
   gulp.watch( config.watchSrc + 'i/*.*', [ 'images' ] )
 } )
 
@@ -191,11 +198,11 @@ gulp.task( 'watch', function() {
 // Build tasks
 // build:prod forces build into production mode, turning off sourcemaps and
 // turning on minification
-gulp.task( 'build:prod', [ 'toggleProduction', 'build', 'toggleProduction' ] )
+gulp.task( 'build:prod', [ 'forceProduction', 'build' ] )
 gulp.task( 'build', [ 'images', 'javascripts', 'stylesheets', 'html' ] )
 
 
 // Default task
-gulp.task( 'default', [ 'serve', 'watch' ], function() {
+gulp.task( 'default', [ 'build', 'serve', 'watch' ], function() {
   gutil.log( 'Serving through BrowserSync on port ' + gutil.colors.yellow( config.port ) + '.' )
 } )
