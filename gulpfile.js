@@ -10,6 +10,7 @@ var htmlmin = require( 'gulp-htmlmin' )
 var rename = require( 'gulp-rename' )
 var concat = require( 'gulp-concat' )
 var less = require( 'gulp-less' )
+var please = require( 'gulp-pleeease' )
 var sourcemaps = require( 'gulp-sourcemaps' )
 var gutil = require( 'gulp-util' )
 var inject = require( 'gulp-inject-string' )
@@ -148,12 +149,24 @@ gulp.task( 'stylesheets', [ 'tagCollector' ], function() {
     } )
   }
 
+  var pleaseOpts = {
+    'autoprefixer': true,
+    'minifier': false
+  }
+
+  if ( config.env == 'production' ) {
+    pleaseOpts[ 'minifier' ] = true
+    pleaseOpts[ 'mqpacker' ] = true
+  }
+
   return gulp.src( config.src + 'less/main.less' )
     .pipe( config.env == 'development' ? sourcemaps.init() : gutil.noop() )
     .pipe( tagAdder ? inject.append( tagAdder ) : gutil.noop() )
     .pipe( less( {
-      plugins: [ autoprefix, cleancss ]
+      //plugins: [ autoprefix, cleancss ]
     } ) )
+    .on( 'error', raise )
+    .pipe( please( pleaseOpts ) )
     .on( 'error', raise )
     .pipe( rename('main.css') )
     .pipe( config.env == 'development' ? sourcemaps.write( config.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )

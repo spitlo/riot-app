@@ -3,6 +3,7 @@
     "gulp": {
       "cleanCss": {
         "advanced": true,
+        "aggressiveMerging": true,
         "processImport": true
       },
       "autoPrefix": {
