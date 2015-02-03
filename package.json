@@ -9,7 +9,7 @@
     "url": "https://github.com/spitlo/riot-app"
   },
   "scripts": {
-    "test": "./node_modules/jscs/bin/jscs --verbose ./**/*.js",
+    "test": "jscs --verbose ./**/*.js",
     "start": "gulp"
   },
   "devDependencies": {
