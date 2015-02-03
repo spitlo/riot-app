@@ -1,4 +1,13 @@
 
+0.3.3 / 2015-02-03
+==================
+
+  * Trying out gulp-pleeease instead of gulp-less plugins
+  * No need for full path to local modules for npm scripts
+  * Who needs a bold monospace
+  * Better watchify setup
+
+
 0.3.2 / 2015-01-31
 ==================
 
