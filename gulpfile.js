@@ -21,12 +21,6 @@ var fs = require( 'fs' )
 // Read configuration file
 var config = require( './conf/' )
 
-// Init Less plugins
-var LessCleanCSS = require( 'less-plugin-clean-css' )
-var LessAutoPrefix = require( 'less-plugin-autoprefix' )
-var cleancss = new LessCleanCSS( config.gulp.cleanCss )
-var autoprefix = new LessAutoPrefix( config.gulp.autoPrefix )
-
 // Helper funtion to save name of all custom tags discovered by tagCollector
 var tags = []
 var logTags = function( eventstream ) {
@@ -67,7 +61,7 @@ var braise = function( err ) {
 // Collect tags to use for <= IE8 compability and tag-specific .less file injection
 gulp.task( 'tagCollector', function() {
   tags = []
-  return gulp.src( config.src + 'js/**/*.tag')
+  return gulp.src( config.gulp.src + 'js/**/*.tag')
     .pipe( logTags( eventstream ) )
 } )
 
@@ -85,7 +79,7 @@ gulp.task( 'html', [ 'tagCollector' ], function() {
     tagAdder = '<script>html5.addElements("' + tags.join(' ') + '")</script>'
   }
 
-  return gulp.src( config.src + 'index.html')
+  return gulp.src( config.gulp.src + 'index.html')
     .pipe( tagAdder ? inject.before( '<![endif]-->', tagAdder ) : gutil.noop() )
     .on( 'error', raise )
     .pipe( config.env == 'production' ? htmlmin( {
@@ -94,7 +88,7 @@ gulp.task( 'html', [ 'tagCollector' ], function() {
       keepClosingSlash: true
     } ) : gutil.noop() )
     .on( 'error', raise )
-    .pipe( gulp.dest( config.build ) )
+    .pipe( gulp.dest( config.gulp.build ) )
 } )
 
 
@@ -110,10 +104,10 @@ bundle = function() {
     .pipe( config.env == 'production' ? uglify() : gutil.noop() )
     .pipe( config.env == 'development' ? sourcemaps.init( { loadMaps: true } ) : gutil.noop() )
     .pipe( config.env == 'development' ? sourcemaps.write( config.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )
-    .pipe( gulp.dest( config.build + 'js/' ) )
+    .pipe( gulp.dest( config.gulp.build + 'js/' ) )
 }
 gulp.task( 'javascripts', function() {
-  bundler = browserify( config.src + 'js/main.js', {
+  bundler = browserify( config.gulp.src + 'js/main.js', {
     cache: {},
     packageCache: {},
     fullPaths: config.env == 'development',
@@ -141,57 +135,52 @@ gulp.task( 'stylesheets', [ 'tagCollector' ], function() {
     tags.forEach( function( tag ) {
       // Try finding tag specific less files and inject as imports
       var fileName = tag + '.less'
-      if ( fs.existsSync( config.src + 'less/tags/' + fileName ) ) {
+      if ( fs.existsSync( config.gulp.src + 'less/tags/' + fileName ) ) {
         tagAdder += '@import "tags/' + fileName + '";'
-      } else if ( fs.existsSync( config.src + 'js/modules/' + tag + '/' + fileName ) ) {
+      } else if ( fs.existsSync( config.gulp.src + 'js/modules/' + tag + '/' + fileName ) ) {
         tagAdder += '@import "../js/modules/' + tag + '/' + fileName + '";'
       }
     } )
   }
 
-  var pleaseOpts = {
-    'autoprefixer': true,
-    'minifier': false
-  }
+  var pleaseOpts = config.gulp.pleaseOpts
 
   if ( config.env == 'production' ) {
     pleaseOpts[ 'minifier' ] = true
     pleaseOpts[ 'mqpacker' ] = true
   }
 
-  return gulp.src( config.src + 'less/main.less' )
+  return gulp.src( config.gulp.src + 'less/main.less' )
     .pipe( config.env == 'development' ? sourcemaps.init() : gutil.noop() )
     .pipe( tagAdder ? inject.append( tagAdder ) : gutil.noop() )
-    .pipe( less( {
-      //plugins: [ autoprefix, cleancss ]
-    } ) )
+    .pipe( less() )
     .on( 'error', raise )
     .pipe( please( pleaseOpts ) )
     .on( 'error', raise )
     .pipe( rename('main.css') )
     .pipe( config.env == 'development' ? sourcemaps.write( config.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )
-    .pipe( gulp.dest( config.build + 'css/' ) )
+    .pipe( gulp.dest( config.gulp.build + 'css/' ) )
 } )
 
 
 // Images
 gulp.task( 'images', function() {
-  return gulp.src( config.src + 'i/**' )
-    .pipe( gulp.dest( config.build + 'i/' ) )
+  return gulp.src( config.gulp.src + 'i/**' )
+    .pipe( gulp.dest( config.gulp.build + 'i/' ) )
 } )
 
 
 // Serve files through Browser Sync
 gulp.task( 'serve', function() {
   browserSync( {
-    port: config.port,
+    port: config.gulp.browserSync.port,
     server: {
-      baseDir: config.build
+      baseDir: config.gulp.build
     },
     files: [
-      config.build + 'js/*.*',
-      config.build + 'css/*.*',
-      config.build + '*.*'
+      config.gulp.build + 'js/*.*',
+      config.gulp.build + 'css/*.*',
+      config.gulp.build + '*.*'
     ]
   } )
 } )
@@ -199,12 +188,12 @@ gulp.task( 'serve', function() {
 
 // Watch task
 gulp.task( 'watch', function() {
-  // The reason for using config.watchSrc and not config.src is that gulp.watch
+  // The reason for using config.gulp.watchSrc and not config.gulp.src is that gulp.watch
   // doesn't trigger on globs starting with './'
-  gulp.watch( config.watchSrc + '*.html', [ 'html' ] )
-  gulp.watch( config.watchSrc + '**/**/*.less', [ 'stylesheets' ] )
-  gulp.watch( config.watchSrc + 'js/**/*.tag', [ 'html', 'stylesheets' ] )
-  gulp.watch( config.watchSrc + 'i/*.*', [ 'images' ] )
+  gulp.watch( config.gulp.watchSrc + '*.html', [ 'html' ] )
+  gulp.watch( config.gulp.watchSrc + '**/**/*.less', [ 'stylesheets' ] )
+  gulp.watch( config.gulp.watchSrc + 'js/**/*.tag', [ 'html', 'stylesheets' ] )
+  gulp.watch( config.gulp.watchSrc + 'i/*.*', [ 'images' ] )
 } )
 
 

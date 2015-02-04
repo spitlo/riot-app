@@ -1,19 +1,19 @@
 {
   "global": {
     "gulp": {
-      "cleanCss": {
-        "advanced": true,
-        "aggressiveMerging": true,
-        "processImport": true
+      "src": "./src/",
+      "watchSrc": "src/",
+      "build": "./build/",
+      "externalSourcemaps": true,
+      "browserSync": {
+        "port": 3001
       },
-      "autoPrefix": {
-        "cascade": false
-      },
-      "externalSourcemaps": true
-    },
-    "src": "./src/",
-    "watchSrc": "src/",
-    "build": "./build/"
+      "pleaseOpts": {
+        "autoprefixer": true,
+        "minifier": false,
+        "mqpacker": false
+      }
+    }
   },
   "production": {
     "port": false

@@ -3,3 +3,4 @@ build
 src/js/tags.js
 src/less/revcss.less
 conf/private.json
+npm-debug.log

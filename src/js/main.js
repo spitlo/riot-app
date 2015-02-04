@@ -1,3 +1,5 @@
+var config = require( '../../conf/browser' )
+
 var riot = require( 'riot' )
 var SVGInjector = require( 'svg-injector' )
 var ready = require( './modules/domready' )
