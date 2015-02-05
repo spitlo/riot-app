@@ -13,10 +13,12 @@ var less = require( 'gulp-less' )
 var please = require( 'gulp-pleeease' )
 var sourcemaps = require( 'gulp-sourcemaps' )
 var gutil = require( 'gulp-util' )
+var checksum = require('checksum')
 var inject = require( 'gulp-inject-string' )
 var source = require( 'vinyl-source-stream' )
 var eventstream = require( 'event-stream' )
 var fs = require( 'fs' )
+var del = require('del')
 
 // Read configuration file
 var config = require( './conf/' )
@@ -29,6 +31,23 @@ var logTags = function( eventstream ) {
     tags.push( filename )
     return callback( null, file )
   } )
+}
+var tagSourcer = function() {
+  var tagSources = ''
+  if ( tags && tags.length > 0 ) {
+    tags.forEach( function( tag ) {
+      // Try finding tag specific less files and inject as imports
+      var fileName = tag + '.less'
+      if ( fs.existsSync( config.src + 'less/tags/' + fileName ) ) {
+        tagSources += '@import "tags/' + fileName + '";'
+      } else if ( fs.existsSync( config.src + 'js/modules/' + tag + '/' + fileName ) ) {
+        tagSources += '@import "../js/modules/' + tag + '/' + fileName + '";'
+      }
+    } )
+    return tagSources
+  } else {
+    return false
+  }
 }
 
 // Generic + browserify error handlers
@@ -61,150 +80,189 @@ var braise = function( err ) {
 // Collect tags to use for <= IE8 compability and tag-specific .less file injection
 gulp.task( 'tagCollector', function() {
   tags = []
-  return gulp.src( config.gulp.src + 'js/**/*.tag')
+  return gulp.src( config.src + 'js/**/*.tag')
     .pipe( logTags( eventstream ) )
 } )
 
-
-// Enable build task to force minification and turn off sourcemaps
-gulp.task( 'forceProduction', function() {
-  config.env = 'production'
+// Get sha hash for current commit
+var hashes = {}
+gulp.task( 'getHash', [ 'javascripts:prod', 'stylesheets:prod' ], function( callback ) {
+  return checksum.file( config.dest + 'js/bundle.js', function ( err, jsChecksum ) {
+    if ( err ) raise( err )
+    return checksum.file( config.dest + 'css/bundle.css', function ( err, cssChecksum ) {
+        if ( err ) raise( err )
+          hashes = {
+            js: jsChecksum,
+            css: cssChecksum
+          }
+          callback()
+      } )
+  } )
 } )
 
 
+// ------------------
 // HTML
-gulp.task( 'html', [ 'tagCollector' ], function() {
+// -- Production
+gulp.task( 'html:prod', [ 'tagCollector', 'getHash' ], function() {
   var tagAdder
   if ( tags && tags.length > 0 ) {
     tagAdder = '<script>html5.addElements("' + tags.join(' ') + '")</script>'
   }
-
-  return gulp.src( config.gulp.src + 'index.html')
+  return gulp.src( config.src + 'index.html')
     .pipe( tagAdder ? inject.before( '<![endif]-->', tagAdder ) : gutil.noop() )
+    .pipe( inject.after( '/bundle.css', '?' + hashes.css ) )
+    .pipe( inject.after( '/bundle.js', '?' + hashes.js ) )
     .on( 'error', raise )
-    .pipe( config.env == 'production' ? htmlmin( {
+    .pipe( htmlmin( {
       collapseWhitespace: true,
       removeComments: true,
       keepClosingSlash: true
-    } ) : gutil.noop() )
+    } ) )
     .on( 'error', raise )
-    .pipe( gulp.dest( config.gulp.build ) )
+    .pipe( gulp.dest( config.dest ) )
+} )
+// -- Development
+gulp.task( 'html:dev', function() {
+  return gulp.src( config.src + 'index.html')
+    .on( 'error', raise )
+    .pipe( gulp.dest( config.dest ) )
 } )
 
 
+// ------------------
 // JavaScripts
 var bundler
-bundle = function() {
-  gutil.log( 'Bundling for', ( config.env == 'production' ? 'production' : 'development' ) )
+bundle = function( env ) {
   return bundler
     .bundle()
     .on( 'error', braise )
     .pipe( source( 'bundle.js' ) )
     .pipe( buffer() )
-    .pipe( config.env == 'production' ? uglify() : gutil.noop() )
-    .pipe( config.env == 'development' ? sourcemaps.init( { loadMaps: true } ) : gutil.noop() )
-    .pipe( config.env == 'development' ? sourcemaps.write( config.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )
-    .pipe( gulp.dest( config.gulp.build + 'js/' ) )
+    .pipe( env == 'production' ? uglify() : gutil.noop() )
+    .pipe( env == 'development' ? sourcemaps.init( { loadMaps: true } ) : gutil.noop() )
+    .pipe( env == 'development' ? sourcemaps.write( config.development.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )
+    .pipe( gulp.dest( config.dest + 'js/' ) )
 }
-gulp.task( 'javascripts', function() {
-  bundler = browserify( config.gulp.src + 'js/main.js', {
+// -- Production
+gulp.task( 'javascripts:prod', function() {
+  bundler = browserify( config.src + 'js/main.js', {
+    extensions: [ '.tag' ],
+    debug: false
+  } ).transform( 'riotify' )
+  return bundle( 'production' )
+} )
+// -- Development
+gulp.task( 'javascripts:dev', function() {
+  bundler = watchify( browserify( config.src + 'js/main.js', {
     cache: {},
     packageCache: {},
-    fullPaths: config.env == 'development',
+    fullPaths: true,
     extensions: [ '.tag' ],
-    debug: config.env == 'development'
-  } )
-
-  if ( config.env == 'development' ) {
-    bundler = watchify( bundler )
-    bundler.on( 'update', function() {
-      return bundle()
+    debug: true
+  } ) ) 
+    .on( 'update', function() {
+      return bundle( 'development' )
     } )
-  }
-
-  bundler.transform( 'riotify' )
-  
-  return bundle()
+    .transform( 'riotify' )
+  return bundle( 'development' )
 } )
 
 
+// ------------------
 // Stylesheets
-gulp.task( 'stylesheets', [ 'tagCollector' ], function() {
-  var tagAdder = ''
-  if ( tags && tags.length > 0 ) {
-    tags.forEach( function( tag ) {
-      // Try finding tag specific less files and inject as imports
-      var fileName = tag + '.less'
-      if ( fs.existsSync( config.gulp.src + 'less/tags/' + fileName ) ) {
-        tagAdder += '@import "tags/' + fileName + '";'
-      } else if ( fs.existsSync( config.gulp.src + 'js/modules/' + tag + '/' + fileName ) ) {
-        tagAdder += '@import "../js/modules/' + tag + '/' + fileName + '";'
-      }
-    } )
-  }
-
-  var pleaseOpts = config.gulp.pleaseOpts
-
-  if ( config.env == 'production' ) {
-    pleaseOpts[ 'minifier' ] = true
-    pleaseOpts[ 'mqpacker' ] = true
-  }
-
-  return gulp.src( config.gulp.src + 'less/main.less' )
-    .pipe( config.env == 'development' ? sourcemaps.init() : gutil.noop() )
-    .pipe( tagAdder ? inject.append( tagAdder ) : gutil.noop() )
+// -- Production
+gulp.task( 'stylesheets:prod', [ 'tagCollector' ], function() {
+  var tagString = tagSourcer()
+  return gulp.src( config.src + 'less/main.less' )
+    .pipe( tagString ? inject.append( tagString ) : gutil.noop() )
     .pipe( less() )
     .on( 'error', raise )
-    .pipe( please( pleaseOpts ) )
+    .pipe( please( config.production.gulp.pleaseOpts ) )
     .on( 'error', raise )
-    .pipe( rename('main.css') )
-    .pipe( config.env == 'development' ? sourcemaps.write( config.gulp.externalSourcemaps ? './' : '' ) : gutil.noop() )
-    .pipe( gulp.dest( config.gulp.build + 'css/' ) )
+    .pipe( rename('bundle.css') )
+    .pipe( gulp.dest( config.dest + 'css/' ) )
+} )
+// -- Development
+gulp.task( 'stylesheets:dev', [ 'tagCollector' ], function() {
+  var tagString = tagSourcer()
+  return gulp.src( config.src + 'less/main.less' )
+    .pipe( sourcemaps.init() )
+    .pipe( tagString ? inject.append( tagString ) : gutil.noop() )
+    .pipe( less() )
+    .on( 'error', raise )
+    .pipe( please( config.development.gulp.pleaseOpts ) )
+    .on( 'error', raise )
+    .pipe( rename('bundle.css') )
+    .pipe( sourcemaps.write( config.development.gulp.externalSourcemaps ? './' : '' ) )
+    .pipe( gulp.dest( config.dest + 'css/' ) )
 } )
 
 
+// ------------------
 // Images
-gulp.task( 'images', function() {
-  return gulp.src( config.gulp.src + 'i/**' )
-    .pipe( gulp.dest( config.gulp.build + 'i/' ) )
+// -- Production
+gulp.task( 'images:prod', [ 'clean:images' ], function() {
+  return gulp.src( config.src + 'i/**' )
+    .pipe( gulp.dest( config.dest + 'i/' ) )
+} )
+// -- Development
+gulp.task( 'images:dev', function() {
+  return gulp.src( config.src + 'i/**' )
+    .pipe( gulp.dest( config.dest + 'i/' ) )
+} )
+gulp.task( 'clean:images', function( callback ) {
+  del( [ config.dest + 'i/**/*.*' ], function ( err ) {
+    if ( err ) raise( err )
+    callback()
+  } )
 } )
 
-
+// ------------------
 // Serve files through Browser Sync
 gulp.task( 'serve', function() {
   browserSync( {
-    port: config.gulp.browserSync.port,
+    port: config.development.gulp.browserSync.port,
     server: {
-      baseDir: config.gulp.build
+      baseDir: config.dest
     },
     files: [
-      config.gulp.build + 'js/*.*',
-      config.gulp.build + 'css/*.*',
-      config.gulp.build + '*.*'
+      config.dest + 'js/*.*',
+      config.dest + 'css/*.*',
+      config.dest + '*.*'
     ]
   } )
 } )
 
 
+// ------------------
 // Watch task
 gulp.task( 'watch', function() {
-  // The reason for using config.gulp.watchSrc and not config.gulp.src is that gulp.watch
+  // The reason for using watchSrc and not config.src is that gulp.watch
   // doesn't trigger on globs starting with './'
-  gulp.watch( config.gulp.watchSrc + '*.html', [ 'html' ] )
-  gulp.watch( config.gulp.watchSrc + '**/**/*.less', [ 'stylesheets' ] )
-  gulp.watch( config.gulp.watchSrc + 'js/**/*.tag', [ 'html', 'stylesheets' ] )
-  gulp.watch( config.gulp.watchSrc + 'i/*.*', [ 'images' ] )
+  var watchSrc = config.src.replace(/\.\//, '')
+  gulp.watch( watchSrc + '*.html', [ 'html:dev' ] )
+  gulp.watch( watchSrc + '**/**/*.less', [ 'stylesheets:dev' ] )
+  gulp.watch( watchSrc + 'js/**/*.tag', [ 'stylesheets:dev' ] )
+  gulp.watch( watchSrc + 'i/*.*', [ 'images:dev' ] )
 } )
 
 
+// ------------------
 // Build tasks
-// build:prod forces build into production mode, turning off sourcemaps and
-// turning on minification
-gulp.task( 'build:prod', [ 'forceProduction', 'build' ] )
-gulp.task( 'build', [ 'images', 'javascripts', 'stylesheets', 'html' ] )
+gulp.task( 'build:prod', [ 'html:prod', 'images:prod' ], function( callback ) {
+  del( [ config.dest + 'js/*.map', config.dest + 'css/*.map' ], function ( err, deletedFiles ) {
+    if ( err ) raise( err )
+    gutil.log( 'Production build finished, sourcemaps cleaned.' )
+    gutil.log( 'Build folder (' + config.dest + ') is now ready for deployment.' )
+    callback()
+  } )
+} )
+gulp.task( 'build:dev', [ 'images:dev', 'javascripts:dev', 'stylesheets:dev', 'html:dev' ] )
 
 
+// ------------------
 // Default task
-gulp.task( 'default', [ 'build', 'serve', 'watch' ], function() {
+gulp.task( 'default', [ 'build:dev', 'serve', 'watch' ], function() {
   gutil.log( 'Serving through BrowserSync on port ' + gutil.colors.yellow( config.port ) + '.' )
 } )
