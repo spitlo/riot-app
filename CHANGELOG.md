@@ -1,4 +1,12 @@
 
+0.4.0 / 2015-02-05
+==================
+
+  * Separate task for prod and dev. Bliss.
+  * Missing files from conf restruct.
+  * Conf restructured
+
+
 0.3.3 / 2015-02-03
 ==================
 
